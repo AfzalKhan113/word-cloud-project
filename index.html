@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Jargon Word Cloud</title>
+    
+    <!-- Library: SheetJS for Excel reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Library: html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 300px;
+            background: #ffffff;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-content {
+            padding: 32px 24px;
+            flex: 1;
+        }
+
+        h1 {
+            color: #1a202c;
+            margin-bottom: 32px;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .file-picker-container {
+            margin-bottom: 32px;
+        }
+
+        .file-input-wrapper {
+            display: inline-block;
+            position: relative;
+        }
+
+        input[type="file"] {
+            font-size: 14px;
+            padding: 12px;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            background: #f7fafc;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        input[type="file"]:hover {
+            background: #edf2f7;
+            border-color: #667eea;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #718096;
+            min-height: 20px;
+            line-height: 1.5;
+        }
+
+        .status.loading {
+            color: #667eea;
+        }
+
+        .status.error {
+            color: #e53e3e;
+        }
+
+        .status.success {
+            color: #38a169;
+        }
+
+        /* Legend with category checkboxes */
+        .legend-container {
+            margin-top: 32px;
+        }
+
+        .legend-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .legend-item:hover {
+            background: #f7fafc;
+            border-color: #e2e8f0;
+        }
+
+        .legend-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .legend-label {
+            font-size: 14px;
+            color: #2d3748;
+            user-select: none;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .legend-count {
+            font-size: 12px;
+            color: #718096;
+            margin-left: auto;
+            background: #edf2f7;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        /* Search Box */
+        .search-container {
+            margin-bottom: 32px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #a0aec0;
+        }
+
+        /* Select All/None Buttons */
+        .category-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn-control {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-control:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+
+        .btn-control:active {
+            background: #edf2f7;
+        }
+
+        /* Download Image Button */
+        .download-container {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-download {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-download:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-download:active {
+            transform: translateY(0);
+        }
+
+        .btn-download:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Help Button */
+        .help-container {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-help {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f7fafc;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-help:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        /* Help Modal */
+        .help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .help-modal.active {
+            display: flex;
+        }
+
+        .help-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .help-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .help-modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .help-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #718096;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .help-modal-close:hover {
+            background: #f7fafc;
+            color: #2d3748;
+        }
+
+        .help-modal-body {
+            color: #4a5568;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .help-modal-body p {
+            margin-bottom: 12px;
+        }
+
+        .help-modal-body ul {
+            margin-left: 20px;
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        .help-modal-body li {
+            margin-bottom: 8px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            margin-left: 300px;
+            flex: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Word cloud container */
+        #wordcloud-container {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            position: relative;
+            padding: 40px;
+            overflow: auto;
+        }
+
+        /* Individual word styling */
+        .word-item {
+            display: inline-block;
+            margin: 5px 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            position: relative;
+            user-select: none;
+        }
+
+        .word-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .word-item.hidden {
+            display: none;
+        }
+
+        /* Word sizes - all words get readable sizes */
+        .word-size-small {
+            font-size: 18px;
+        }
+
+        .word-size-medium {
+            font-size: 24px;
+        }
+
+        .word-size-large {
+            font-size: 32px;
+        }
+
+        .word-size-xlarge {
+            font-size: 40px;
+        }
+
+        /* Tooltip for showing definitions on hover */
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 350px;
+            z-index: 10000;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            line-height: 1.5;
+            word-wrap: break-word;
+            display: none;
+        }
+
+        .tooltip-word {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+
+        .tooltip-definition {
+            color: #e0e0e0;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid rgba(0, 0, 0, 0.95);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            html {
+                overflow: hidden;
+            }
+
+            body {
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+                overflow-y: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+                height: 60vh;
+                flex: 1;
+            }
+
+            #wordcloud-container {
+                height: 100%;
+                padding: 24px;
+            }
+
+            .sidebar-content {
+                padding: 24px 20px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #f7fafc;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <h1>Technical Jargon Word Cloud</h1>
+            
+            <div class="file-picker-container">
+                <div class="file-input-wrapper">
+                    <input type="file" id="excel-file" accept=".xlsx,.xls" />
+                </div>
+                <div class="status" id="status">Select an Excel file to begin</div>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-container" id="search-container" style="display: none;">
+                <input type="text" 
+                       id="search-input" 
+                       class="search-input" 
+                       placeholder="Search words..." 
+                       autocomplete="off" />
+            </div>
+
+            <!-- Legend with category checkboxes -->
+            <div class="legend-container" id="legend-container" style="display: none;">
+                <div class="legend-title">Categories</div>
+                
+                <!-- Select All/None Buttons -->
+                <div class="category-controls">
+                    <button class="btn-control" id="select-all-btn">Select All</button>
+                    <button class="btn-control" id="select-none-btn">Select None</button>
+                </div>
+                
+                <div class="legend-items" id="legend-items"></div>
+            </div>
+
+            <!-- Download Image Button -->
+            <div class="download-container" id="download-container" style="display: none;">
+                <button class="btn-download" id="download-btn">
+                    <span>📥</span>
+                    <span>Download Image</span>
+                </button>
+            </div>
+
+            <!-- Help Button -->
+            <div class="help-container">
+                <button class="btn-help" id="help-btn">
+                    <span>?</span>
+                    <span>Help</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Help Modal -->
+    <div class="help-modal" id="help-modal">
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <h2 class="help-modal-title">How to Use</h2>
+                <button class="help-modal-close" id="help-modal-close">&times;</button>
+            </div>
+            <div class="help-modal-body">
+                <p><strong>Upload an Excel file</strong> with sheets to generate a word cloud. Each sheet becomes a category.</p>
+                <p><strong>File Format:</strong></p>
+                <ul>
+                    <li>First column: Words</li>
+                    <li>Second column: Definitions</li>
+                </ul>
+                <p><strong>Features:</strong></p>
+                <ul>
+                    <li>Use the search box to filter words instantly</li>
+                    <li>Toggle categories using checkboxes to show/hide words</li>
+                    <li>Hover over words to see their definitions</li>
+                    <li>Click "Download Image" to save the word cloud as PNG</li>
+                    <li>Your settings are automatically saved and restored on page refresh</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div id="wordcloud-container"></div>
+    </main>
+
+    <!-- Tooltip element for showing definitions on hover -->
+    <div class="tooltip" id="tooltip" style="display: none;">
+        <div class="tooltip-word" id="tooltip-word"></div>
+        <div class="tooltip-definition" id="tooltip-definition"></div>
+    </div>
+
+    <script>
+        // Global variables to store word data
+        let wordData = {}; // Maps word to {definition, category}
+        let allWords = []; // Array of all words with category info: {word, category, definition}
+        let categories = {}; // Maps category name to {color, wordCount, enabled}
+        let categoryColors = []; // Predefined distinct colors for categories
+        let searchTerm = ''; // Current search term for filtering
+
+        // Distinct, readable colors with good contrast
+        const COLOR_PALETTE = [
+            '#667eea', // Purple-blue
+            '#f093fb', // Pink
+            '#4facfe', // Blue
+            '#43e97b', // Green
+            '#fa709a', // Rose
+            '#fee140', // Yellow
+            '#30cfd0', // Cyan
+            '#ff6b6b', // Red
+            '#4ecdc4', // Teal
+            '#45b7d1', // Sky blue
+            '#f9ca24', // Gold
+            '#6c5ce7', // Purple
+            '#a29bfe', // Light purple
+            '#fd79a8', // Light pink
+            '#00b894', // Emerald
+            '#e17055', // Orange
+            '#0984e3', // Royal blue
+            '#00cec9', // Turquoise
+            '#fdcb6e', // Peach
+            '#e84393'  // Magenta
+        ];
+
+        // Get references to DOM elements
+        const fileInput = document.getElementById('excel-file');
+        const wordcloudContainer = document.getElementById('wordcloud-container');
+        const statusDiv = document.getElementById('status');
+        const tooltip = document.getElementById('tooltip');
+        const tooltipWord = document.getElementById('tooltip-word');
+        const tooltipDefinition = document.getElementById('tooltip-definition');
+        const legendContainer = document.getElementById('legend-container');
+        const legendItems = document.getElementById('legend-items');
+        const searchContainer = document.getElementById('search-container');
+        const searchInput = document.getElementById('search-input');
+        const selectAllBtn = document.getElementById('select-all-btn');
+        const selectNoneBtn = document.getElementById('select-none-btn');
+        const downloadContainer = document.getElementById('download-container');
+        const downloadBtn = document.getElementById('download-btn');
+        const helpBtn = document.getElementById('help-btn');
+        const helpModal = document.getElementById('help-modal');
+        const helpModalClose = document.getElementById('help-modal-close');
+
+        /**
+         * Update status message with styling
+         */
+        function updateStatus(message, type = '') {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+
+        /**
+         * Read Excel file and extract words and definitions from ALL sheets
+         * Each sheet name = category
+         * First column = words, Second column = definitions
+         */
+        function processExcelFile(file) {
+            updateStatus('Loading...', 'loading');
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    // Parse the Excel file
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Initialize data structures
+                    wordData = {};
+                    allWords = [];
+                    categories = {};
+                    
+                    // Process ALL sheets
+                    const sheetNames = workbook.SheetNames;
+                    
+                    if (sheetNames.length === 0) {
+                        updateStatus('Error: No sheets found in the Excel file', 'error');
+                        return;
+                    }
+                    
+                    // Assign colors to categories
+                    sheetNames.forEach((sheetName, index) => {
+                        const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
+                        categories[sheetName] = {
+                            color: color,
+                            wordCount: 0,
+                            enabled: true
+                        };
+                    });
+                    
+                    // Process each sheet
+                    sheetNames.forEach((sheetName) => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        // Process each row in this sheet
+                        for (let i = 0; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (row && row.length >= 2) {
+                                const word = String(row[0]).trim();
+                                const definition = String(row[1]).trim();
+                                
+                                // Only add if word is not empty
+                                if (word && word !== '') {
+                                    // Store word data with category info
+                                    const wordKey = word.toLowerCase(); // Use lowercase as key for uniqueness
+                                    
+                                    // If word already exists, keep the first definition found
+                                    if (!wordData[wordKey]) {
+                                        wordData[wordKey] = {
+                                            definition: definition || 'No definition available',
+                                            category: sheetName,
+                                            originalWord: word // Keep original casing for display
+                                        };
+                                        
+                                        allWords.push({
+                                            word: word, // Original casing
+                                            wordKey: wordKey,
+                                            category: sheetName,
+                                            definition: definition || 'No definition available'
+                                        });
+                                        
+                                        categories[sheetName].wordCount++;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Check if we found any words
+                    const totalWords = allWords.length;
+                    if (totalWords === 0) {
+                        updateStatus('Error: No words found in the first two columns of any sheet', 'error');
+                        return;
+                    }
+                    
+                    // Count total words per category for display
+                    const categoryCounts = {};
+                    allWords.forEach(item => {
+                        categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1;
+                    });
+                    
+                    // Update category word counts
+                    Object.keys(categories).forEach(cat => {
+                        categories[cat].wordCount = categoryCounts[cat] || 0;
+                    });
+                    
+                    updateStatus(`Loaded ${totalWords} words from ${sheetNames.length} sheet(s). Generating word cloud...`, 'loading');
+                    
+                    // Clear old data and reset state for new file
+                    wordcloudContainer.innerHTML = '';
+                    searchTerm = '';
+                    searchInput.value = '';
+                    
+                    // Clear localStorage for fresh start with new file
+                    localStorage.removeItem('wordCloudSearch');
+                    localStorage.removeItem('wordCloudCategories');
+                    
+                    // Show search box and download button
+                    searchContainer.style.display = 'block';
+                    downloadContainer.style.display = 'block';
+                    
+                    // Create legend
+                    createLegend();
+                    
+                    // Generate word cloud
+                    generateWordCloud();
+                    
+                    updateStatus(`Word cloud generated! ${totalWords} words from ${sheetNames.length} categories. Hover over words to see definitions.`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error processing Excel file:', error);
+                    updateStatus('Error reading Excel file: ' + error.message, 'error');
+                }
+            };
+            
+            reader.onerror = function() {
+                updateStatus('Error reading file', 'error');
+            };
+            
+            // Read file as array buffer
+            reader.readAsArrayBuffer(file);
+        }
+
+        /**
+         * Create legend with checkboxes for each category
+         */
+        function createLegend() {
+            // Show legend container
+            legendContainer.style.display = 'block';
+            legendItems.innerHTML = '';
+            
+            // Create checkbox for each category
+            Object.keys(categories).forEach((categoryName) => {
+                const category = categories[categoryName];
+                
+                // Create legend item
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                
+                // Create checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `category-${categoryName}`;
+                checkbox.checked = category.enabled;
+                checkbox.dataset.category = categoryName;
+                
+                // Create colored dot
+                const dot = document.createElement('span');
+                dot.className = 'legend-dot';
+                dot.style.backgroundColor = category.color;
+                
+                // Create label
+                const label = document.createElement('label');
+                label.className = 'legend-label';
+                label.htmlFor = `category-${categoryName}`;
+                label.textContent = categoryName;
+                
+                // Create count
+                const count = document.createElement('span');
+                count.className = 'legend-count';
+                count.textContent = `(${category.wordCount})`;
+                
+                // Assemble legend item
+                legendItem.appendChild(checkbox);
+                legendItem.appendChild(dot);
+                legendItem.appendChild(label);
+                legendItem.appendChild(count);
+                
+                // Add click handler to toggle category
+                checkbox.addEventListener('change', function() {
+                    toggleCategory(categoryName, this.checked);
+                });
+                
+                // Make entire legend item clickable
+                legendItem.addEventListener('click', function(e) {
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        toggleCategory(categoryName, checkbox.checked);
+                    }
+                });
+                
+                legendItems.appendChild(legendItem);
+            });
+        }
+
+        /**
+         * Filter words based on search term and category filters
+         * This function applies both search and category filters together
+         */
+        function filterWords() {
+            const wordElements = wordcloudContainer.querySelectorAll('.word-item');
+            
+            wordElements.forEach(element => {
+                const word = element.dataset.word || '';
+                const wordKey = element.dataset.wordKey || '';
+                const category = element.dataset.category || '';
+                
+                // Check if category is enabled
+                const categoryEnabled = categories[category] ? categories[category].enabled : false;
+                
+                // Check if word matches search term (case-insensitive)
+                const matchesSearch = !searchTerm || 
+                    word.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    wordKey.includes(searchTerm.toLowerCase());
+                
+                // Show word only if both conditions are met
+                if (categoryEnabled && matchesSearch) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            });
+        }
+
+        /**
+         * Toggle category visibility
+         */
+        function toggleCategory(categoryName, enabled) {
+            categories[categoryName].enabled = enabled;
+            saveStateToLocalStorage(); // Save state
+            filterWords(); // Apply combined filters
+        }
+
+        /**
+         * Save current state to localStorage
+         */
+        function saveStateToLocalStorage() {
+            // Save search term
+            localStorage.setItem('wordCloudSearch', searchTerm);
+            
+            // Save category states
+            const categoryStates = {};
+            Object.keys(categories).forEach(cat => {
+                categoryStates[cat] = categories[cat].enabled;
+            });
+            localStorage.setItem('wordCloudCategories', JSON.stringify(categoryStates));
+        }
+
+        /**
+         * Restore state from localStorage
+         */
+        function restoreStateFromLocalStorage() {
+            // Restore search term
+            const savedSearch = localStorage.getItem('wordCloudSearch');
+            if (savedSearch !== null) {
+                searchTerm = savedSearch;
+                searchInput.value = savedSearch;
+            }
+            
+            // Restore category states
+            const savedCategories = localStorage.getItem('wordCloudCategories');
+            if (savedCategories) {
+                try {
+                    const categoryStates = JSON.parse(savedCategories);
+                    Object.keys(categoryStates).forEach(cat => {
+                        if (categories[cat] !== undefined) {
+                            categories[cat].enabled = categoryStates[cat];
+                            // Update checkbox
+                            const checkbox = document.getElementById(`category-${cat}`);
+                            if (checkbox) {
+                                checkbox.checked = categoryStates[cat];
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error restoring category states:', e);
+                }
+            }
+            
+            // Apply filters after restoring state
+            if (wordcloudContainer.querySelectorAll('.word-item').length > 0) {
+                filterWords();
+            }
+        }
+
+        /**
+         * Download word cloud as image
+         */
+        async function downloadWordCloud() {
+            if (!wordcloudContainer || wordcloudContainer.children.length === 0) {
+                updateStatus('No word cloud to download', 'error');
+                return;
+            }
+
+            try {
+                downloadBtn.disabled = true;
+                downloadBtn.textContent = '⏳ Generating...';
+                
+                updateStatus('Generating image...', 'loading');
+                
+                // Use html2canvas to capture the word cloud container
+                const canvas = await html2canvas(wordcloudContainer, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // Higher quality
+                    logging: false,
+                    useCORS: true
+                });
+                
+                // Convert canvas to blob and download
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `word-cloud-${new Date().toISOString().split('T')[0]}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    updateStatus('Image downloaded successfully!', 'success');
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<span>📥</span><span>Download Image</span>';
+                }, 'image/png');
+                
+            } catch (error) {
+                console.error('Error generating image:', error);
+                updateStatus('Error generating image. Please try again.', 'error');
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<span>📥</span><span>Download Image</span>';
+            }
+        }
+
+        /**
+         * Generate word cloud from word list
+         * Each word appears once, colored by its category
+         */
+        function generateWordCloud() {
+            // Clear previous word cloud
+            wordcloudContainer.innerHTML = '';
+            
+            // Shuffle words for random distribution
+            const shuffledWords = [...allWords].sort(() => Math.random() - 0.5);
+            
+            // Create word elements
+            shuffledWords.forEach((item) => {
+                const wordElement = document.createElement('span');
+                wordElement.className = 'word-item';
+                
+                // Assign random size class for visual variety (all readable)
+                const sizeClasses = ['word-size-small', 'word-size-medium', 'word-size-large', 'word-size-xlarge'];
+                const sizeClass = sizeClasses[Math.floor(Math.random() * sizeClasses.length)];
+                wordElement.classList.add(sizeClass);
+                
+                // Assign color based on category
+                const categoryColor = categories[item.category].color;
+                wordElement.style.color = categoryColor;
+                
+                // Random rotation for some words (30% chance)
+                if (Math.random() < 0.3) {
+                    const rotation = (Math.random() - 0.5) * 20; // -10 to +10 degrees
+                    wordElement.style.transform = `rotate(${rotation}deg)`;
+                }
+                
+                wordElement.textContent = item.word;
+                wordElement.dataset.word = item.word;
+                wordElement.dataset.wordKey = item.wordKey;
+                wordElement.dataset.definition = item.definition;
+                wordElement.dataset.category = item.category;
+                
+                // Add hover event listeners
+                wordElement.addEventListener('mouseenter', function(e) {
+                    showTooltip(e, item.word, item.definition);
+                });
+                
+                wordElement.addEventListener('mousemove', function(e) {
+                    updateTooltipPosition(e);
+                });
+                
+                wordElement.addEventListener('mouseleave', function() {
+                    hideTooltip();
+                });
+                
+                // Add to container
+                wordcloudContainer.appendChild(wordElement);
+            });
+            
+            // Apply initial filters (all categories enabled, no search)
+            filterWords();
+        }
+
+        /**
+         * Show tooltip with definition at mouse position
+         */
+        function showTooltip(event, word, definition) {
+            tooltipWord.textContent = word;
+            tooltipDefinition.textContent = definition;
+            tooltip.style.display = 'block';
+            updateTooltipPosition(event);
+        }
+
+        /**
+         * Update tooltip position based on mouse coordinates
+         * Smart positioning: tooltip never goes off-screen
+         * Uses fixed positioning relative to viewport (event.clientX/clientY)
+         */
+        function updateTooltipPosition(event) {
+            // Offset from cursor to prevent tooltip from covering the word
+            const offsetX = 15;
+            const offsetY = -10;
+            
+            // Get tooltip dimensions (need to show it first to measure)
+            const wasHidden = tooltip.style.display === 'none';
+            if (wasHidden) {
+                tooltip.style.display = 'block';
+                tooltip.style.visibility = 'hidden';
+            }
+            
+            // Get tooltip dimensions
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // Calculate available space on each side
+            const spaceRight = windowWidth - event.clientX;
+            const spaceLeft = event.clientX;
+            const spaceBottom = windowHeight - event.clientY;
+            const spaceTop = event.clientY;
+            
+            // Determine horizontal position
+            let left;
+            if (spaceRight >= tooltipRect.width + offsetX) {
+                // Enough space on right, place to the right of cursor
+                left = event.clientX + offsetX;
+            } else if (spaceLeft >= tooltipRect.width + offsetX) {
+                // Not enough space on right, but enough on left, place to the left
+                left = event.clientX - tooltipRect.width - offsetX;
+            } else {
+                // Not enough space on either side, center it
+                left = Math.max(offsetX, (windowWidth - tooltipRect.width) / 2);
+            }
+            
+            // Determine vertical position
+            let top;
+            if (spaceBottom >= tooltipRect.height + Math.abs(offsetY)) {
+                // Enough space below, place below cursor
+                top = event.clientY + Math.abs(offsetY);
+            } else if (spaceTop >= tooltipRect.height + Math.abs(offsetY)) {
+                // Not enough space below, but enough above, place above cursor
+                top = event.clientY - tooltipRect.height - Math.abs(offsetY);
+            } else {
+                // Not enough space on either side, center it vertically
+                top = Math.max(offsetY, (windowHeight - tooltipRect.height) / 2);
+            }
+            
+            // Ensure tooltip doesn't go off screen
+            left = Math.max(offsetX, Math.min(left, windowWidth - tooltipRect.width - offsetX));
+            top = Math.max(offsetY, Math.min(top, windowHeight - tooltipRect.height - offsetY));
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            
+            if (wasHidden) {
+                tooltip.style.visibility = 'visible';
+            }
+        }
+
+        /**
+         * Hide tooltip
+         */
+        function hideTooltip() {
+            tooltip.style.display = 'none';
+        }
+
+        // File input change handler
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Check file type
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                    updateStatus('Please select a valid Excel file (.xlsx or .xls)', 'error');
+                    return;
+                }
+                
+                // Process the file
+                processExcelFile(file);
+            }
+        });
+
+        // Search input handler - filter words as user types
+        searchInput.addEventListener('input', function(e) {
+            searchTerm = e.target.value.trim();
+            saveStateToLocalStorage(); // Save state
+            filterWords(); // Apply combined search + category filters
+        });
+
+        // Select All button handler
+        selectAllBtn.addEventListener('click', function() {
+            Object.keys(categories).forEach(categoryName => {
+                categories[categoryName].enabled = true;
+                const checkbox = document.getElementById(`category-${categoryName}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            saveStateToLocalStorage(); // Save state
+            filterWords(); // Apply filters
+        });
+
+        // Select None button handler
+        selectNoneBtn.addEventListener('click', function() {
+            Object.keys(categories).forEach(categoryName => {
+                categories[categoryName].enabled = false;
+                const checkbox = document.getElementById(`category-${categoryName}`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+            });
+            saveStateToLocalStorage(); // Save state
+            filterWords(); // Apply filters
+        });
+
+        // Download button handler
+        downloadBtn.addEventListener('click', function() {
+            downloadWordCloud();
+        });
+
+        // Help button handler
+        helpBtn.addEventListener('click', function() {
+            helpModal.classList.add('active');
+        });
+
+        // Close help modal handlers
+        helpModalClose.addEventListener('click', function() {
+            helpModal.classList.remove('active');
+        });
+
+        // Close modal when clicking outside
+        helpModal.addEventListener('click', function(e) {
+            if (e.target === helpModal) {
+                helpModal.classList.remove('active');
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && helpModal.classList.contains('active')) {
+                helpModal.classList.remove('active');
+            }
+        });
+
+        // Restore state on page load (after a short delay to ensure DOM is ready)
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                restoreStateFromLocalStorage();
+            }, 100);
+        });
+    </script>
+</body>
+</html>
